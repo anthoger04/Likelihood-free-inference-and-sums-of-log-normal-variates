@@ -5,6 +5,30 @@ from q1 import simulate_lognormal_sum, wasserstein_1d, reject_abc
 
 
 n_obs = 200  
+def find_warm_start(Y_obs, L, s, t, rng, n_trials=200):
+    """
+    Sample n_trials candidates from the prior, return the one
+    minimising the Wasserstein distance. No epsilon constraint.
+    """
+    best_theta = (1,1)
+    best_dist  = np.inf
+
+    for _ in range(n_trials):
+        mu_cand         = rng.normal(0, s)
+        log_sigma2_cand = rng.normal(0, t)
+
+        if log_sigma2_cand > 10:
+            continue
+
+        sigma_cand = np.sqrt(np.exp(log_sigma2_cand))
+        Z_sim      = simulate_lognormal_sum(n_obs, L, mu_cand, sigma_cand, rng=rng)
+        dist       = wasserstein_1d(Y_obs, Z_sim)
+
+        if dist < best_dist:
+            best_dist  = dist
+            best_theta = (mu_cand, log_sigma2_cand)
+
+    return best_theta, best_dist
 
 def ABCMCMC(Y_obs, L, s, t, epsilon, step_mu, step_log_sigma2, num_samples=100, max_attempts=10000, rng=None):
     """
@@ -17,28 +41,11 @@ Sinon → retourner en 1 et recommencer
     
     """
     # Step 1, let's sample mu and sigma
-    # Sample candidate parameters from independent Gaussian priors
     
-    dist=np.inf
-    while not(dist <= epsilon):
-        mu_star = rng.normal(0, s)
-        log_sigma2_star = rng.normal(0, t)
-        
-        # Numerical stability safeguard against exponential overflow
-        if log_sigma2_star > 10:
-            continue
-            
-        sigma_star = np.sqrt(np.exp(log_sigma2_star))
-        
-        # Generate synthetic dataset
-        Z_sim = simulate_lognormal_sum(n_obs, L, mu_star, sigma_star, rng=rng)
-        
-        # Evaluate the 1-Wasserstein discrepancy
-        dist = wasserstein_1d(Y_obs, Z_sim)
-        
-        # Apply the acceptance kernel
+
     
-        theta_initial=(mu_star, log_sigma2_star)
+    theta_initial = find_warm_start(Y_obs, L, s, t, rng, n_trials=200)[0]
+
 
     #### Etape 2 : 
     accepted = 0
