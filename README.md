@@ -4,7 +4,7 @@
 This repository contains the Python implementation for the project on "Likelihood-Free Inference and Sums of Log-Normal Variates".
 
 **Important Note regarding our approach:** 
-Following the updated project guidelines, **the main approach we present for Questions 1 and 2 utilizes the new conjugate priors** ($\sigma^2 \sim \text{IG}(a, b)$ and $\mu|\sigma^2 \sim \mathcal{N}(0, \kappa\sigma^2)$).
+Following the updated project guidelines, **the main approach we present for Questions 1 and 2 utilizes the new conjugate priors** ($\sigma^2 \sim \text{IG}(a, b)$ and $\mu \mid \sigma^2 \sim \mathcal{N}(0, \kappa\sigma^2)$).
 
 However, we have also preserved our initial implementation using independent priors (Gaussian and Log-Normal) as a baseline. This allows us to empirically illustrate the structural inefficiency and severe prior bias of Likelihood-Free Inference when exploring non-conjugate, highly diffuse spaces.
 
