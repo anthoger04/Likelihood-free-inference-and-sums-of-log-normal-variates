@@ -5,29 +5,27 @@ from q1 import simulate_lognormal_sum, wasserstein_1d, reject_abc
 
 
 n_obs = 200  
-def find_warm_start(Y_obs, L, s, t, rng, n_trials=200):
-    """
-    Sample n_trials candidates from the prior, return the one
-    minimising the Wasserstein distance. No epsilon constraint.
-    """
-    best_theta = (1,1)
-    best_dist  = np.inf
+def find_warm_start(Y_obs, L, a, b, kappa, rng, n_trials=200):
+    best_theta = (1, 1, 1)
+    best_dist = np.inf
 
     for _ in range(n_trials):
-        mu_cand         = rng.normal(0, s)
-        log_sigma2_cand = rng.normal(0, t)
+        sigma2 = 1/rng.gamma(a, 1/b)
+        mu_cand = rng.normal(0, np.sqrt(kappa*sigma2))
+        log_sigma2_cand = np.log(sigma2)
 
         if log_sigma2_cand > 10:
             continue
 
-        sigma_cand = np.sqrt(np.exp(log_sigma2_cand))
-        Z_sim      = simulate_lognormal_sum(n_obs, L, mu_cand, sigma_cand, rng=rng)
-        dist       = wasserstein_1d(Y_obs, Z_sim)
+        sigma_cand = np.sqrt(sigma2)
+        Z_sim = simulate_lognormal_sum(n_obs, L, mu_cand, sigma_cand, rng=rng)
+        dist = wasserstein_1d(Y_obs, Z_sim)
 
         if dist < best_dist:
-            best_dist  = dist
+            best_dist = dist
             best_theta = (mu_cand, log_sigma2_cand)
-
+    
+    print(f"  → Warm start: µ={best_theta[0]:.4f}, log(σ²)={best_theta[1]:.4f}, dist={best_dist:.4f}")  # ← AJOUT
     return best_theta, best_dist
 
 def ABCMCMC(Y_obs, L, s, t, epsilon, step_mu, step_log_sigma2, num_samples=100, max_attempts=10000, rng=None):
