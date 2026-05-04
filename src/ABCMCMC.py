@@ -32,11 +32,7 @@ def find_warm_start(Y_obs, L, s, t, rng, n_trials=200):
 
 def ABCMCMC(Y_obs, L, s, t, epsilon, step_mu, step_log_sigma2, num_samples=100, max_attempts=10000, rng=None):
     """
-    Tirer θ ~ p(θ)
-Simuler x_sim ~ p(· | θ)
-Calculer d = ρ(S(x_sim), S(x_obs))
-Si d ≤ ε → bon point de départ, on lance la chaîne
-Sinon → retourner en 1 et recommencer
+
     
     
     """
