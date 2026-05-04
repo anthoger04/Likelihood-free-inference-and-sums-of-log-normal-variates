@@ -4,12 +4,36 @@ import numpy as np
 from q1 import simulate_lognormal_sum, wasserstein_1d, reject_abc
 
 
-n_obs = 200  
 def find_warm_start(Y_obs, L, a, b, kappa, epsilon, rng, n_trials=500):
     """
-    Trouve un warm start en cherchant le meilleur point possible.
-    Si aucun point acceptable n'est trouvé, utilise une valeur de secours raisonnable.
+    Recherche un point de départ pour ABC-MCMC respectant la contrainte epsilon.
+    Si aucun point valide n'est trouvé, utilise une valeur de secours.
+    
+    Parameters
+    ----------
+    Y_obs : np.ndarray
+        Données observées
+    L : int
+        Nombre de variables log-normales sommées
+    a, b : float
+        Paramètres de la loi Inverse-Gamma pour σ²
+    kappa : float
+        Paramètre du prior conditionnel N(0, κσ²) pour µ
+    epsilon : float
+        Seuil de tolérance ABC
+    rng : np.random.Generator
+        Générateur aléatoire
+    n_trials : int, default=500
+        Nombre d'essais pour trouver un bon départ
+        
+    Returns
+    -------
+    best_theta : tuple (float, float)
+        Meilleur couple (µ, log(σ²)) trouvé
+    best_dist : float
+        Distance de Wasserstein correspondante
     """
+    n_obs = len(Y_obs)
     best_theta = None
     best_dist = np.inf
 
@@ -31,37 +55,62 @@ def find_warm_start(Y_obs, L, a, b, kappa, epsilon, rng, n_trials=500):
     
     # Si aucun point n'a été trouvé, utiliser une valeur de secours
     if best_theta is None or best_dist > 2*epsilon:  # Si vraiment trop loin
-        print(f"  ⚠ Warm start échoué (best_dist={best_dist:.4f})")
-        print(f"    → Utilisation valeur de secours: µ=0, log(σ²)=-2")
         best_theta = (0.0, -2.0)  # Valeur raisonnable proche de la vérité
-        
         # Vérifier la distance avec cette valeur de secours
         sigma_fallback = np.exp(-2.0/2)  # σ = exp(log(σ²)/2)
         Z_fallback = simulate_lognormal_sum(n_obs, L, 0.0, sigma_fallback, rng=rng)
         best_dist = wasserstein_1d(Y_obs, Z_fallback)
-        print(f"    → Distance avec valeur de secours: {best_dist:.4f}")
     
-    elif best_dist <= epsilon:
-        print(f"  ✓ Warm start valide: dist={best_dist:.4f} <= ε={epsilon}")
-    else:
-        print(f"  ⚠ Warm start: dist={best_dist:.4f} > ε={epsilon} (mais on continue)")
     
     return best_theta, best_dist
 
 def ABCMCMC(Y_obs, L, a,b,kappa , epsilon, step_mu, step_log_sigma2, num_samples=100, max_attempts=10000, rng=None):
     """
-
+    Implémente l'algorithme ABC-MCMC (Marjoram et al.) avec Random Walk Metropolis.
     
+    Prior : σ² ~ IG(a,b) et µ|σ² ~ N(0, κσ²)
+    Proposition : Random Walk sur (µ, log(σ²))
     
+    Parameters
+    ----------
+    Y_obs : np.ndarray
+        Données observées (n échantillons)
+    L : int
+        Nombre de variables log-normales sommées dans le modèle
+    a, b : float
+        Paramètres de la loi Inverse-Gamma sur σ²
+    kappa : float
+        Paramètre du prior conditionnel sur µ
+    epsilon : float
+        Seuil de tolérance ABC (accepte si distance ≤ epsilon)
+    step_mu : float
+        Taille du pas pour la proposition de µ
+    step_log_sigma2 : float
+        Taille du pas pour la proposition de log(σ²)
+    num_samples : int, default=100
+        Nombre d'échantillons MCMC à générer
+    max_attempts : int, default=10000
+        Non utilisé (hérité de l'ancienne version)
+    rng : np.random.Generator, optional
+        Générateur aléatoire pour reproductibilité
+        
+    Returns
+    -------
+    chain : np.ndarray (num_samples, 2)
+        Chaîne MCMC avec colonnes [µ, log(σ²)]
+    acc_rate : float
+        Taux d'acceptation global
+        
+    Notes
+    -----
+    - Inclut un Jacobien pour la transformation log(σ²) → σ²
+    - Utilise un warm start avec fallback (0, -2) si nécessaire
+    - Le taux d'acceptation optimal pour Random Walk est ~20-30%
     """
-    # Step 1, let's sample mu and sigma
-    
+    n_obs = len(Y_obs)
     
     theta_initial = find_warm_start(Y_obs, L, a, b, kappa, epsilon, rng, n_trials=1000)[0]
 
-
-
-    #### Etape 2 : 
     accepted = 0
 
     theta_step=theta_initial
